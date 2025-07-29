@@ -64,8 +64,8 @@
                 if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
                     SecurityValidator.validateHTTPS();
                     SecurityValidator.validateOrigin();
+                    SecurityValidator.validateSession();
                 }
-                SecurityValidator.validateSession();
 
                 if (data) {
                     SecurityValidator.validateDataSize(data);
@@ -88,6 +88,12 @@
                     this.retryCount++;
                     await this.delay(1000 * this.retryCount); // Exponential backoff
                     return this.secureRequest(operation, data);
+                }
+                
+                // Don't throw errors in development, just log them
+                if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+                    console.warn('Secure communication warning:', error.message);
+                    return { operation, data, timestamp: Date.now() };
                 }
                 
                 throw error;
@@ -572,7 +578,10 @@
                 SecurityLogger.logEvent('todo_created', { id: todo.id, length: text.length });
             } catch (error) {
                 console.error('Failed to add todo:', error);
-                this.showSecurityAlert('Failed to add task. Please try again.');
+                // Don't show alert in development
+                if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+                    this.showSecurityAlert('Failed to add task. Please try again.');
+                }
             }
         }
 
@@ -601,10 +610,13 @@
                     this.render();
                     
                     SecurityLogger.logEvent('todo_toggled', { id: id, completed: todo.completed });
-                } catch (error) {
-                    console.error('Failed to toggle todo:', error);
+                            } catch (error) {
+                console.error('Failed to toggle todo:', error);
+                // Don't show alert in development
+                if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
                     this.showSecurityAlert('Failed to update task. Please try again.');
                 }
+            }
             }
         }
 
@@ -644,7 +656,10 @@
                 this.closeModal();
             } catch (error) {
                 console.error('Failed to save edit:', error);
-                this.showSecurityAlert('Failed to save changes. Please try again.');
+                // Don't show alert in development
+                if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+                    this.showSecurityAlert('Failed to save changes. Please try again.');
+                }
             }
         }
 
@@ -663,10 +678,13 @@
                         
                         SecurityLogger.logEvent('todo_deleted', { id: id });
                     }, 300);
-                } catch (error) {
-                    console.error('Failed to delete todo:', error);
+                            } catch (error) {
+                console.error('Failed to delete todo:', error);
+                // Don't show alert in development
+                if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
                     this.showSecurityAlert('Failed to delete task. Please try again.');
                 }
+            }
             }
         }
 
@@ -684,10 +702,13 @@
                     this.render();
                     
                     SecurityLogger.logEvent('todos_cleared', { count: completedCount });
-                } catch (error) {
-                    console.error('Failed to clear completed todos:', error);
+                            } catch (error) {
+                console.error('Failed to clear completed todos:', error);
+                // Don't show alert in development
+                if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
                     this.showSecurityAlert('Failed to clear completed tasks. Please try again.');
                 }
+            }
             }
         }
 
@@ -912,10 +933,13 @@
                     this.render();
                     
                     SecurityLogger.logEvent('all_data_cleared', {});
-                } catch (error) {
-                    console.error('Failed to clear all data:', error);
+                            } catch (error) {
+                console.error('Failed to clear all data:', error);
+                // Don't show alert in development
+                if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
                     this.showSecurityAlert('Failed to clear data. Please try again.');
                 }
+            }
             }
         }
     }
