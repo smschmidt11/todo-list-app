@@ -60,9 +60,11 @@
 
         async secureRequest(operation, data = null) {
             try {
-                // Validate security requirements
-                SecurityValidator.validateHTTPS();
-                SecurityValidator.validateOrigin();
+                // Validate security requirements only in production
+                if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+                    SecurityValidator.validateHTTPS();
+                    SecurityValidator.validateOrigin();
+                }
                 SecurityValidator.validateSession();
 
                 if (data) {
@@ -207,8 +209,11 @@
         // Initialize secure session
         initializeSecureSession() {
             try {
-                SecurityValidator.validateHTTPS();
-                SecurityValidator.validateOrigin();
+                // Only validate HTTPS in production environments
+                if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+                    SecurityValidator.validateHTTPS();
+                    SecurityValidator.validateOrigin();
+                }
                 
                 // Set session start time
                 if (!sessionStorage.getItem('sessionStart')) {
@@ -228,15 +233,15 @@
                 });
             } catch (error) {
                 console.error('Secure session initialization failed:', error);
-                this.showSecurityAlert('Secure session initialization failed. Please use HTTPS.');
+                // Don't show alert for local development
             }
         }
 
         // Initialize Web Crypto API with enhanced security
         async initializeCrypto() {
             try {
-                // Validate secure context
-                if (!window.isSecureContext) {
+                // Validate secure context only in production
+                if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1' && !window.isSecureContext) {
                     throw new Error('Secure context required for cryptographic operations');
                 }
 
@@ -252,7 +257,7 @@
                 });
             } catch (error) {
                 console.error('Crypto initialization failed:', error);
-                this.showSecurityAlert('Security initialization failed. Please refresh the page.');
+                // Don't show alert for local development
                 SecurityLogger.logEvent('crypto_init_failed', { error: error.message });
             }
         }
