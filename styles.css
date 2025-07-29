@@ -435,6 +435,46 @@ header p {
     color: #495057;
 }
 
+/* Security Statistics Styles */
+.security-stats {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #e9ecef;
+}
+
+.security-stats h4 {
+    color: #333;
+    margin-bottom: 15px;
+    font-size: 1.1rem;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: #e3f2fd;
+    border-radius: 6px;
+    border-left: 3px solid #2196f3;
+}
+
+.stat-item span {
+    font-size: 0.9rem;
+    color: #1976d2;
+    font-weight: 500;
+}
+
+.stat-item strong {
+    color: #1565c0;
+    font-weight: 600;
+}
+
 .security-actions {
     border-top: 1px solid #e9ecef;
     padding-top: 20px;

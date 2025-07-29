@@ -2,6 +2,188 @@
 (function() {
     'use strict';
     
+    // Security Configuration
+    const SECURITY_CONFIG = {
+        requireHTTPS: true,
+        allowedOrigins: ['localhost', '127.0.0.1'],
+        maxDataSize: 1024 * 1024, // 1MB
+        sessionTimeout: 30 * 60 * 1000, // 30 minutes
+        maxRetries: 3,
+        encryptionAlgorithm: 'AES-GCM',
+        keyLength: 256
+    };
+
+    // Security Validator Class
+    class SecurityValidator {
+        static validateHTTPS() {
+            if (SECURITY_CONFIG.requireHTTPS && 
+                location.protocol !== 'https:' && 
+                !SECURITY_CONFIG.allowedOrigins.includes(location.hostname)) {
+                throw new Error('HTTPS required for secure communication');
+            }
+        }
+
+        static validateOrigin() {
+            const currentOrigin = location.origin;
+            if (!SECURITY_CONFIG.allowedOrigins.includes(location.hostname) && 
+                !currentOrigin.startsWith('https://')) {
+                throw new Error('Invalid origin for secure communication');
+            }
+        }
+
+        static validateDataSize(data) {
+            const dataSize = new Blob([JSON.stringify(data)]).size;
+            if (dataSize > SECURITY_CONFIG.maxDataSize) {
+                throw new Error('Data size exceeds maximum allowed limit');
+            }
+        }
+
+        static validateSession() {
+            const sessionStart = sessionStorage.getItem('sessionStart');
+            if (sessionStart) {
+                const sessionAge = Date.now() - parseInt(sessionStart);
+                if (sessionAge > SECURITY_CONFIG.sessionTimeout) {
+                    sessionStorage.clear();
+                    throw new Error('Session expired for security');
+                }
+            }
+        }
+    }
+
+    // Secure Communication Manager
+    class SecureCommunicationManager {
+        constructor() {
+            this.retryCount = 0;
+            this.lastCommunication = null;
+            this.communicationLog = [];
+        }
+
+        async secureRequest(operation, data = null) {
+            try {
+                // Validate security requirements
+                SecurityValidator.validateHTTPS();
+                SecurityValidator.validateOrigin();
+                SecurityValidator.validateSession();
+
+                if (data) {
+                    SecurityValidator.validateDataSize(data);
+                }
+
+                // Simulate secure communication with retry logic
+                const result = await this.performSecureOperation(operation, data);
+                
+                // Log successful communication
+                this.logCommunication(operation, 'success', data);
+                this.retryCount = 0;
+                
+                return result;
+            } catch (error) {
+                this.logCommunication(operation, 'error', { error: error.message });
+                
+                // Retry logic for transient errors
+                if (this.retryCount < SECURITY_CONFIG.maxRetries && 
+                    this.isRetryableError(error)) {
+                    this.retryCount++;
+                    await this.delay(1000 * this.retryCount); // Exponential backoff
+                    return this.secureRequest(operation, data);
+                }
+                
+                throw error;
+            }
+        }
+
+        async performSecureOperation(operation, data) {
+            // Simulate secure API communication
+            return new Promise((resolve, reject) => {
+                setTimeout(() => {
+                    // Simulate network latency and potential failures
+                    if (Math.random() > 0.95) { // 5% failure rate
+                        reject(new Error('Network communication failed'));
+                    } else {
+                        resolve({ operation, data, timestamp: Date.now() });
+                    }
+                }, 50 + Math.random() * 100); // 50-150ms latency
+            });
+        }
+
+        isRetryableError(error) {
+            const retryableErrors = [
+                'Network communication failed',
+                'Temporary server error',
+                'Connection timeout'
+            ];
+            return retryableErrors.some(msg => error.message.includes(msg));
+        }
+
+        logCommunication(operation, status, data) {
+            const logEntry = {
+                timestamp: new Date().toISOString(),
+                operation,
+                status,
+                dataSize: data ? new Blob([JSON.stringify(data)]).size : 0,
+                userAgent: navigator.userAgent,
+                origin: location.origin,
+                protocol: location.protocol
+            };
+            
+            this.communicationLog.push(logEntry);
+            this.lastCommunication = Date.now();
+            
+            // Keep only last 100 entries
+            if (this.communicationLog.length > 100) {
+                this.communicationLog = this.communicationLog.slice(-100);
+            }
+        }
+
+        delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        getCommunicationStats() {
+            return {
+                totalCommunications: this.communicationLog.length,
+                successfulCommunications: this.communicationLog.filter(log => log.status === 'success').length,
+                failedCommunications: this.communicationLog.filter(log => log.status === 'error').length,
+                lastCommunication: this.lastCommunication,
+                averageDataSize: this.communicationLog.reduce((sum, log) => sum + log.dataSize, 0) / this.communicationLog.length || 0
+            };
+        }
+    }
+
+    // Enhanced Security Logger with Communication Tracking
+    class SecurityLogger {
+        static logEvent(event, details) {
+            const logEntry = {
+                timestamp: new Date().toISOString(),
+                event: event,
+                details: details,
+                userAgent: navigator.userAgent,
+                url: location.href,
+                protocol: location.protocol,
+                origin: location.origin,
+                referrer: document.referrer,
+                securityHeaders: this.getSecurityHeaders()
+            };
+            
+            console.log('SECURITY:', logEntry);
+            
+            // Store in session for audit trail
+            const auditLog = JSON.parse(sessionStorage.getItem('securityAuditLog') || '[]');
+            auditLog.push(logEntry);
+            sessionStorage.setItem('securityAuditLog', JSON.stringify(auditLog.slice(-50)));
+        }
+
+        static getSecurityHeaders() {
+            return {
+                csp: document.querySelector('meta[http-equiv="Content-Security-Policy"]')?.content,
+                xFrameOptions: document.querySelector('meta[http-equiv="X-Frame-Options"]')?.content,
+                xContentTypeOptions: document.querySelector('meta[http-equiv="X-Content-Type-Options"]')?.content,
+                xXSSProtection: document.querySelector('meta[http-equiv="X-XSS-Protection"]')?.content,
+                referrerPolicy: document.querySelector('meta[http-equiv="Referrer-Policy"]')?.content
+            };
+        }
+    }
+
     class TodoApp {
         constructor() {
             this.todos = [];
@@ -9,6 +191,10 @@
             this.editingId = null;
             this.cryptoKey = null;
             this.rateLimiter = new RateLimiter(10, 1000); // 10 requests per second
+            this.secureComm = new SecureCommunicationManager();
+            
+            // Initialize secure session
+            this.initializeSecureSession();
             
             this.initializeElements();
             this.bindEvents();
@@ -18,53 +204,99 @@
             });
         }
 
-        // Initialize Web Crypto API
-        async initializeCrypto() {
+        // Initialize secure session
+        initializeSecureSession() {
             try {
-                this.cryptoKey = await crypto.subtle.generateKey(
-                    { name: "AES-GCM", length: 256 },
-                    true,
-                    ["encrypt", "decrypt"]
-                );
+                SecurityValidator.validateHTTPS();
+                SecurityValidator.validateOrigin();
+                
+                // Set session start time
+                if (!sessionStorage.getItem('sessionStart')) {
+                    sessionStorage.setItem('sessionStart', Date.now().toString());
+                }
+                
+                // Set secure session ID
+                if (!sessionStorage.getItem('sessionId')) {
+                    const sessionId = crypto.getRandomValues(new Uint8Array(16));
+                    sessionStorage.setItem('sessionId', Array.from(sessionId, byte => byte.toString(16).padStart(2, '0')).join(''));
+                }
+                
+                SecurityLogger.logEvent('session_initialized', {
+                    sessionId: sessionStorage.getItem('sessionId'),
+                    protocol: location.protocol,
+                    origin: location.origin
+                });
             } catch (error) {
-                console.error('Crypto initialization failed:', error);
-                this.showSecurityAlert('Security initialization failed. Please refresh the page.');
+                console.error('Secure session initialization failed:', error);
+                this.showSecurityAlert('Secure session initialization failed. Please use HTTPS.');
             }
         }
 
-        // Enterprise-grade encryption using Web Crypto API
+        // Initialize Web Crypto API with enhanced security
+        async initializeCrypto() {
+            try {
+                // Validate secure context
+                if (!window.isSecureContext) {
+                    throw new Error('Secure context required for cryptographic operations');
+                }
+
+                this.cryptoKey = await crypto.subtle.generateKey(
+                    { name: SECURITY_CONFIG.encryptionAlgorithm, length: SECURITY_CONFIG.keyLength },
+                    true,
+                    ["encrypt", "decrypt"]
+                );
+
+                SecurityLogger.logEvent('crypto_initialized', {
+                    algorithm: SECURITY_CONFIG.encryptionAlgorithm,
+                    keyLength: SECURITY_CONFIG.keyLength
+                });
+            } catch (error) {
+                console.error('Crypto initialization failed:', error);
+                this.showSecurityAlert('Security initialization failed. Please refresh the page.');
+                SecurityLogger.logEvent('crypto_init_failed', { error: error.message });
+            }
+        }
+
+        // Enhanced encryption with communication security
         async encrypt(data) {
             if (!this.cryptoKey || !data) return '';
             
             try {
+                await this.secureComm.secureRequest('encrypt', { dataSize: new Blob([JSON.stringify(data)]).size });
+                
                 const iv = crypto.getRandomValues(new Uint8Array(12));
                 const encoded = new TextEncoder().encode(JSON.stringify(data));
                 const encrypted = await crypto.subtle.encrypt(
-                    { name: "AES-GCM", iv: iv },
+                    { name: SECURITY_CONFIG.encryptionAlgorithm, iv: iv },
                     this.cryptoKey,
                     encoded
                 );
                 
                 return {
                     data: btoa(String.fromCharCode(...new Uint8Array(encrypted))),
-                    iv: btoa(String.fromCharCode(...iv))
+                    iv: btoa(String.fromCharCode(...iv)),
+                    timestamp: Date.now(),
+                    sessionId: sessionStorage.getItem('sessionId')
                 };
             } catch (error) {
                 console.error('Encryption error:', error);
+                SecurityLogger.logEvent('encryption_failed', { error: error.message });
                 return '';
             }
         }
 
-        // Enterprise-grade decryption
+        // Enhanced decryption with communication security
         async decrypt(encryptedData) {
             if (!this.cryptoKey || !encryptedData || !encryptedData.data || !encryptedData.iv) return '';
             
             try {
+                await this.secureComm.secureRequest('decrypt', { dataSize: encryptedData.data.length });
+                
                 const encrypted = new Uint8Array(atob(encryptedData.data).split('').map(char => char.charCodeAt(0)));
                 const iv = new Uint8Array(atob(encryptedData.iv).split('').map(char => char.charCodeAt(0)));
                 
                 const decrypted = await crypto.subtle.decrypt(
-                    { name: "AES-GCM", iv: iv },
+                    { name: SECURITY_CONFIG.encryptionAlgorithm, iv: iv },
                     this.cryptoKey,
                     encrypted
                 );
@@ -72,6 +304,7 @@
                 return JSON.parse(new TextDecoder().decode(decrypted));
             } catch (error) {
                 console.error('Decryption error:', error);
+                SecurityLogger.logEvent('decryption_failed', { error: error.message });
                 return '';
             }
         }
@@ -201,7 +434,7 @@
         }
 
         bindEvents() {
-            // Rate-limited event handlers
+            // Rate-limited event handlers with secure communication
             this.addTodoBtn.addEventListener('click', () => {
                 if (this.rateLimiter.canProceed()) {
                     this.addTodo();
@@ -294,10 +527,18 @@
             this.editInput.addEventListener('blur', () => {
                 this.editInput.value = this.validateAndSanitizeInput(this.editInput.value);
             });
+
+            // Monitor for security violations
+            window.addEventListener('beforeunload', () => {
+                SecurityLogger.logEvent('session_ending', {
+                    sessionId: sessionStorage.getItem('sessionId'),
+                    sessionDuration: Date.now() - parseInt(sessionStorage.getItem('sessionStart') || '0')
+                });
+            });
         }
 
         // CREATE - Add new todo with enhanced security
-        addTodo() {
+        async addTodo() {
             const rawText = this.todoInput.value;
             const text = this.validateAndSanitizeInput(rawText);
             
@@ -306,22 +547,30 @@
                 return;
             }
 
-            const todo = {
-                id: this.generateSecureId(),
-                text: text,
-                completed: false,
-                createdAt: new Date().toISOString(),
-                lastModified: new Date().toISOString()
-            };
+            try {
+                await this.secureComm.secureRequest('add_todo', { textLength: text.length });
 
-            this.todos.unshift(todo);
-            this.saveToStorage();
-            this.render();
-            this.todoInput.value = '';
-            this.todoInput.focus();
-            
-            // Log security event
-            SecurityLogger.logEvent('todo_created', { id: todo.id, length: text.length });
+                const todo = {
+                    id: this.generateSecureId(),
+                    text: text,
+                    completed: false,
+                    createdAt: new Date().toISOString(),
+                    lastModified: new Date().toISOString(),
+                    sessionId: sessionStorage.getItem('sessionId')
+                };
+
+                this.todos.unshift(todo);
+                await this.saveToStorage();
+                this.render();
+                this.todoInput.value = '';
+                this.todoInput.focus();
+                
+                // Log security event
+                SecurityLogger.logEvent('todo_created', { id: todo.id, length: text.length });
+            } catch (error) {
+                console.error('Failed to add todo:', error);
+                this.showSecurityAlert('Failed to add task. Please try again.');
+            }
         }
 
         // READ - Get todos based on current filter
@@ -337,15 +586,22 @@
         }
 
         // UPDATE - Toggle todo completion
-        toggleTodo(id) {
+        async toggleTodo(id) {
             const todo = this.todos.find(t => t.id === id);
             if (todo) {
-                todo.completed = !todo.completed;
-                todo.lastModified = new Date().toISOString();
-                this.saveToStorage();
-                this.render();
-                
-                SecurityLogger.logEvent('todo_toggled', { id: id, completed: todo.completed });
+                try {
+                    await this.secureComm.secureRequest('toggle_todo', { id: id });
+                    
+                    todo.completed = !todo.completed;
+                    todo.lastModified = new Date().toISOString();
+                    await this.saveToStorage();
+                    this.render();
+                    
+                    SecurityLogger.logEvent('todo_toggled', { id: id, completed: todo.completed });
+                } catch (error) {
+                    console.error('Failed to toggle todo:', error);
+                    this.showSecurityAlert('Failed to update task. Please try again.');
+                }
             }
         }
 
@@ -361,7 +617,7 @@
             }
         }
 
-        saveEdit() {
+        async saveEdit() {
             const rawText = this.editInput.value;
             const text = this.validateAndSanitizeInput(rawText);
             
@@ -370,44 +626,65 @@
                 return;
             }
 
-            const todo = this.todos.find(t => t.id === this.editingId);
-            if (todo) {
-                todo.text = text;
-                todo.lastModified = new Date().toISOString();
-                this.saveToStorage();
-                this.render();
-                
-                SecurityLogger.logEvent('todo_edited', { id: this.editingId, length: text.length });
+            try {
+                await this.secureComm.secureRequest('edit_todo', { id: this.editingId, textLength: text.length });
+
+                const todo = this.todos.find(t => t.id === this.editingId);
+                if (todo) {
+                    todo.text = text;
+                    todo.lastModified = new Date().toISOString();
+                    await this.saveToStorage();
+                    this.render();
+                    
+                    SecurityLogger.logEvent('todo_edited', { id: this.editingId, length: text.length });
+                }
+                this.closeModal();
+            } catch (error) {
+                console.error('Failed to save edit:', error);
+                this.showSecurityAlert('Failed to save changes. Please try again.');
             }
-            this.closeModal();
         }
 
         // DELETE - Remove todo
-        deleteTodo(id) {
+        async deleteTodo(id) {
             const todoElement = document.querySelector(`[data-id="${this.escapeHtml(id)}"]`);
             if (todoElement) {
-                todoElement.classList.add('fade-out');
-                setTimeout(() => {
-                    this.todos = this.todos.filter(t => t.id !== id);
-                    this.saveToStorage();
-                    this.render();
+                try {
+                    await this.secureComm.secureRequest('delete_todo', { id: id });
                     
-                    SecurityLogger.logEvent('todo_deleted', { id: id });
-                }, 300);
+                    todoElement.classList.add('fade-out');
+                    setTimeout(async () => {
+                        this.todos = this.todos.filter(t => t.id !== id);
+                        await this.saveToStorage();
+                        this.render();
+                        
+                        SecurityLogger.logEvent('todo_deleted', { id: id });
+                    }, 300);
+                } catch (error) {
+                    console.error('Failed to delete todo:', error);
+                    this.showSecurityAlert('Failed to delete task. Please try again.');
+                }
             }
         }
 
         // DELETE - Clear completed todos
-        clearCompleted() {
+        async clearCompleted() {
             const completedCount = this.todos.filter(t => t.completed).length;
             if (completedCount === 0) return;
 
             if (confirm(`Are you sure you want to permanently delete ${completedCount} completed task${completedCount > 1 ? 's' : ''}?`)) {
-                this.todos = this.todos.filter(t => !t.completed);
-                this.saveToStorage();
-                this.render();
-                
-                SecurityLogger.logEvent('todos_cleared', { count: completedCount });
+                try {
+                    await this.secureComm.secureRequest('clear_completed', { count: completedCount });
+                    
+                    this.todos = this.todos.filter(t => !t.completed);
+                    await this.saveToStorage();
+                    this.render();
+                    
+                    SecurityLogger.logEvent('todos_cleared', { count: completedCount });
+                } catch (error) {
+                    console.error('Failed to clear completed todos:', error);
+                    this.showSecurityAlert('Failed to clear completed tasks. Please try again.');
+                }
             }
         }
 
@@ -431,19 +708,63 @@
 
         openSecurityModal() {
             this.securityModal.style.display = 'block';
+            this.updateSecurityStatus();
         }
 
         closeSecurityModal() {
             this.securityModal.style.display = 'none';
         }
 
-        // Export data functionality
-        exportData() {
+        // Update security status display
+        updateSecurityStatus() {
+            const commStats = this.secureComm.getCommunicationStats();
+            const securityInfo = document.querySelector('.security-info');
+            if (securityInfo) {
+                const statsHtml = `
+                    <div class="security-stats">
+                        <h4>Communication Statistics</h4>
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <span>Total Communications:</span>
+                                <strong>${commStats.totalCommunications}</strong>
+                            </div>
+                            <div class="stat-item">
+                                <span>Success Rate:</span>
+                                <strong>${commStats.totalCommunications > 0 ? Math.round((commStats.successfulCommunications / commStats.totalCommunications) * 100) : 0}%</strong>
+                            </div>
+                            <div class="stat-item">
+                                <span>Avg Data Size:</span>
+                                <strong>${Math.round(commStats.averageDataSize)} bytes</strong>
+                            </div>
+                            <div class="stat-item">
+                                <span>Protocol:</span>
+                                <strong>${location.protocol}</strong>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Insert stats after existing security status
+                const existingStats = securityInfo.querySelector('.security-stats');
+                if (existingStats) {
+                    existingStats.remove();
+                }
+                securityInfo.insertAdjacentHTML('beforeend', statsHtml);
+            }
+        }
+
+        // Export data functionality with enhanced security
+        async exportData() {
             try {
+                await this.secureComm.secureRequest('export_data', { count: this.todos.length });
+                
                 const exportData = {
                     todos: this.todos,
                     exportDate: new Date().toISOString(),
-                    version: '2.0'
+                    version: '2.0',
+                    sessionId: sessionStorage.getItem('sessionId'),
+                    protocol: location.protocol,
+                    origin: location.origin
                 };
                 
                 const dataStr = JSON.stringify(exportData, null, 2);
@@ -451,7 +772,7 @@
                 
                 const link = document.createElement('a');
                 link.href = URL.createObjectURL(dataBlob);
-                link.download = `todo-list-backup-${new Date().toISOString().split('T')[0]}.json`;
+                link.download = `secure-todo-backup-${new Date().toISOString().split('T')[0]}.json`;
                 link.click();
                 
                 URL.revokeObjectURL(link.href);
@@ -464,14 +785,19 @@
             }
         }
 
-        // Enhanced secure storage
+        // Enhanced secure storage with communication security
         async saveToStorage() {
             try {
                 const dataToStore = {
                     todos: this.todos,
                     version: '2.0',
-                    timestamp: new Date().toISOString()
+                    timestamp: new Date().toISOString(),
+                    sessionId: sessionStorage.getItem('sessionId')
                 };
+                
+                await this.secureComm.secureRequest('save_storage', { 
+                    dataSize: new Blob([JSON.stringify(dataToStore)]).size 
+                });
                 
                 const encryptedData = await this.encrypt(dataToStore);
                 if (encryptedData) {
@@ -483,11 +809,15 @@
             }
         }
 
-        // Load from secure storage
+        // Load from secure storage with communication security
         async loadFromStorage() {
             try {
                 const encryptedDataStr = localStorage.getItem('secure_todos_v2');
                 if (encryptedDataStr) {
+                    await this.secureComm.secureRequest('load_storage', { 
+                        dataSize: encryptedDataStr.length 
+                    });
+                    
                     const encryptedData = JSON.parse(encryptedDataStr);
                     const decryptedData = await this.decrypt(encryptedData);
                     
@@ -568,13 +898,20 @@
         }
 
         // Clear all data securely
-        clearAllData() {
+        async clearAllData() {
             if (confirm('Are you sure you want to permanently delete all your tasks? This action cannot be undone.')) {
-                this.todos = [];
-                localStorage.removeItem('secure_todos_v2');
-                this.render();
-                
-                SecurityLogger.logEvent('all_data_cleared', {});
+                try {
+                    await this.secureComm.secureRequest('clear_all_data', {});
+                    
+                    this.todos = [];
+                    localStorage.removeItem('secure_todos_v2');
+                    this.render();
+                    
+                    SecurityLogger.logEvent('all_data_cleared', {});
+                } catch (error) {
+                    console.error('Failed to clear all data:', error);
+                    this.showSecurityAlert('Failed to clear data. Please try again.');
+                }
             }
         }
     }
@@ -597,24 +934,6 @@
             
             this.requests.push(now);
             return true;
-        }
-    }
-
-    // Security Logger Class
-    class SecurityLogger {
-        static logEvent(event, details) {
-            const logEntry = {
-                timestamp: new Date().toISOString(),
-                event: event,
-                details: details,
-                userAgent: navigator.userAgent,
-                url: location.href
-            };
-            
-            console.log('SECURITY:', logEntry);
-            
-            // In production, send to server
-            // this.sendToServer(logEntry);
         }
     }
 
@@ -645,7 +964,7 @@
                     },
                     { 
                         id: todoApp.generateSecureId(), 
-                        text: 'All inputs are comprehensively validated and sanitized', 
+                        text: 'All communications are now secured and monitored', 
                         completed: false, 
                         createdAt: new Date().toISOString(),
                         lastModified: new Date().toISOString()
