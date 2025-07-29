@@ -25,6 +25,14 @@ A modern, responsive todo list application with full CRUD (Create, Read, Update,
 - **Keyboard Support**: Use Enter key to add/edit tasks
 - **Confirmation Dialogs**: Prevents accidental deletions
 
+### 🔒 Security Features
+- **Data Encryption**: All user data is encrypted before storage
+- **Input Validation**: Comprehensive sanitization of all user inputs
+- **XSS Protection**: HTML escaping prevents script injection attacks
+- **Secure IDs**: Unique, non-predictable identifiers for tasks
+- **Data Export**: Secure backup functionality
+- **Security Dashboard**: Real-time security status monitoring
+
 ### 📱 Responsive Design
 - Mobile-friendly interface
 - Touch-optimized buttons and interactions
@@ -54,6 +62,7 @@ A modern, responsive todo list application with full CRUD (Create, Read, Update,
 - **Delete a task**: Click the trash icon
 - **Filter tasks**: Use the filter buttons (All, Active, Completed)
 - **Clear completed**: Click "Clear Completed" to remove all finished tasks
+- **Security settings**: Click the "Security" button to access data management options
 
 #### Keyboard Shortcuts
 - **Enter**: Add new task or save edited task
@@ -89,6 +98,14 @@ todo-list/
 - Debounced input handling
 - Optimized rendering with minimal reflows
 - Local storage for data persistence
+
+### Security Features
+- **Encryption**: XOR-based encryption with session-specific keys
+- **Input Sanitization**: Removes dangerous characters and patterns
+- **XSS Prevention**: HTML escaping and content security
+- **Data Validation**: Type checking and length limits
+- **Secure Storage**: Encrypted localStorage with error handling
+- **Audit Trail**: Timestamps for all data modifications
 
 ## Customization
 

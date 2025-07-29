@@ -398,6 +398,75 @@ header p {
     }
 }
 
+/* Security Modal Styles */
+.security-info {
+    margin-bottom: 25px;
+}
+
+.security-info h4 {
+    color: #333;
+    margin-bottom: 15px;
+    font-size: 1.1rem;
+}
+
+.security-status {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.status-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 4px solid #28a745;
+}
+
+.status-item i {
+    color: #28a745;
+    font-size: 1.1rem;
+}
+
+.status-item span {
+    font-size: 0.95rem;
+    color: #495057;
+}
+
+.security-actions {
+    border-top: 1px solid #e9ecef;
+    padding-top: 20px;
+}
+
+.security-actions h4 {
+    color: #333;
+    margin-bottom: 15px;
+    font-size: 1.1rem;
+}
+
+.security-actions .btn {
+    margin-right: 10px;
+    margin-bottom: 10px;
+}
+
+/* Security Alert Animation */
+.security-alert {
+    animation: slideInRight 0.3s ease;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
 /* Utility Classes */
 .hidden {
     display: none !important;
