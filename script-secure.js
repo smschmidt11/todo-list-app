@@ -424,13 +424,12 @@
             this.cancelEditBtn = document.getElementById('cancelEdit');
             this.saveEditBtn = document.getElementById('saveEdit');
             
-            // Security modal elements
-            this.securityModal = document.getElementById('securityModal');
-            this.securitySettingsBtn = document.getElementById('securitySettings');
-            this.closeSecurityModalBtn = document.getElementById('closeSecurityModal');
-            this.closeSecurityBtn = document.getElementById('closeSecurityBtn');
-            this.exportDataBtn = document.getElementById('exportData');
-            this.clearAllDataBtn = document.getElementById('clearAllData');
+                    // Security modal elements (security button removed for user access)
+        this.securityModal = document.getElementById('securityModal');
+        this.closeSecurityModalBtn = document.getElementById('closeSecurityModal');
+        this.closeSecurityBtn = document.getElementById('closeSecurityBtn');
+        this.exportDataBtn = document.getElementById('exportData');
+        this.clearAllDataBtn = document.getElementById('clearAllData');
         }
 
         bindEvents() {
@@ -472,12 +471,11 @@
                 if (e.target === this.editModal) this.closeModal();
             });
 
-            // Security modal events
-            this.securitySettingsBtn.addEventListener('click', () => this.openSecurityModal());
-            this.closeSecurityModalBtn.addEventListener('click', () => this.closeSecurityModal());
-            this.closeSecurityBtn.addEventListener('click', () => this.closeSecurityModal());
-            this.exportDataBtn.addEventListener('click', () => this.exportData());
-            this.clearAllDataBtn.addEventListener('click', () => this.clearAllData());
+                    // Security modal events (security button removed for user access)
+        this.closeSecurityModalBtn.addEventListener('click', () => this.closeSecurityModal());
+        this.closeSecurityBtn.addEventListener('click', () => this.closeSecurityModal());
+        this.exportDataBtn.addEventListener('click', () => this.exportData());
+        this.clearAllDataBtn.addEventListener('click', () => this.clearAllData());
 
             // Close security modal on outside click
             this.securityModal.addEventListener('click', (e) => {
@@ -706,10 +704,11 @@
             this.editInput.value = '';
         }
 
-        openSecurityModal() {
-            this.securityModal.style.display = 'block';
-            this.updateSecurityStatus();
-        }
+        // Security modal access removed for user privacy
+        // openSecurityModal() {
+        //     this.securityModal.style.display = 'block';
+        //     this.updateSecurityStatus();
+        // }
 
         closeSecurityModal() {
             this.securityModal.style.display = 'none';
