@@ -101,6 +101,11 @@
         }
 
         async performSecureOperation(operation, data) {
+            // For local development, just return success immediately
+            if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+                return { operation, data, timestamp: Date.now() };
+            }
+            
             // Simulate secure API communication
             return new Promise((resolve, reject) => {
                 setTimeout(() => {
@@ -446,11 +451,11 @@
         bindEvents() {
             // Rate-limited event handlers with secure communication
             this.addTodoBtn.addEventListener('click', () => {
-                if (this.rateLimiter.canProceed()) {
-                    this.addTodo();
-                } else {
-                    this.showSecurityAlert('Too many requests. Please wait a moment.');
-                }
+                            if (this.rateLimiter.canProceed()) {
+                this.addTodo();
+            } else {
+                console.log('Security Notice: Too many requests. Please wait a moment.');
+            }
             });
 
             this.todoInput.addEventListener('keypress', (e) => {
@@ -552,12 +557,15 @@
             const text = this.validateAndSanitizeInput(rawText);
             
             if (!text) {
-                this.showSecurityAlert('Please enter a valid task description.');
+                console.log('Security Notice: Please enter a valid task description.');
                 return;
             }
 
             try {
-                await this.secureComm.secureRequest('add_todo', { textLength: text.length });
+                // Skip secure communication for local development
+                if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+                    await this.secureComm.secureRequest('add_todo', { textLength: text.length });
+                }
 
                 const todo = {
                     id: this.generateSecureId(),
@@ -578,10 +586,7 @@
                 SecurityLogger.logEvent('todo_created', { id: todo.id, length: text.length });
             } catch (error) {
                 console.error('Failed to add todo:', error);
-                // Don't show alert in development
-                if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-                    this.showSecurityAlert('Failed to add task. Please try again.');
-                }
+                // Alerts completely disabled
             }
         }
 
@@ -602,7 +607,10 @@
             const todo = this.todos.find(t => t.id === id);
             if (todo) {
                 try {
-                    await this.secureComm.secureRequest('toggle_todo', { id: id });
+                    // Skip secure communication for local development
+                    if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+                        await this.secureComm.secureRequest('toggle_todo', { id: id });
+                    }
                     
                     todo.completed = !todo.completed;
                     todo.lastModified = new Date().toISOString();
@@ -610,13 +618,10 @@
                     this.render();
                     
                     SecurityLogger.logEvent('todo_toggled', { id: id, completed: todo.completed });
-                            } catch (error) {
-                console.error('Failed to toggle todo:', error);
-                // Don't show alert in development
-                if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-                    this.showSecurityAlert('Failed to update task. Please try again.');
+                } catch (error) {
+                    console.error('Failed to toggle todo:', error);
+                    // Alerts completely disabled
                 }
-            }
             }
         }
 
@@ -637,12 +642,15 @@
             const text = this.validateAndSanitizeInput(rawText);
             
             if (!text) {
-                this.showSecurityAlert('Please enter a valid task description.');
+                console.log('Security Notice: Please enter a valid task description.');
                 return;
             }
 
             try {
-                await this.secureComm.secureRequest('edit_todo', { id: this.editingId, textLength: text.length });
+                // Skip secure communication for local development
+                if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+                    await this.secureComm.secureRequest('edit_todo', { id: this.editingId, textLength: text.length });
+                }
 
                 const todo = this.todos.find(t => t.id === this.editingId);
                 if (todo) {
@@ -656,10 +664,7 @@
                 this.closeModal();
             } catch (error) {
                 console.error('Failed to save edit:', error);
-                // Don't show alert in development
-                if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-                    this.showSecurityAlert('Failed to save changes. Please try again.');
-                }
+                // Alerts completely disabled
             }
         }
 
@@ -668,7 +673,10 @@
             const todoElement = document.querySelector(`[data-id="${this.escapeHtml(id)}"]`);
             if (todoElement) {
                 try {
-                    await this.secureComm.secureRequest('delete_todo', { id: id });
+                    // Skip secure communication for local development
+                    if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+                        await this.secureComm.secureRequest('delete_todo', { id: id });
+                    }
                     
                     todoElement.classList.add('fade-out');
                     setTimeout(async () => {
@@ -678,13 +686,10 @@
                         
                         SecurityLogger.logEvent('todo_deleted', { id: id });
                     }, 300);
-                            } catch (error) {
-                console.error('Failed to delete todo:', error);
-                // Don't show alert in development
-                if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-                    this.showSecurityAlert('Failed to delete task. Please try again.');
+                } catch (error) {
+                    console.error('Failed to delete todo:', error);
+                    // Alerts completely disabled
                 }
-            }
             }
         }
 
@@ -695,20 +700,20 @@
 
             if (confirm(`Are you sure you want to permanently delete ${completedCount} completed task${completedCount > 1 ? 's' : ''}?`)) {
                 try {
-                    await this.secureComm.secureRequest('clear_completed', { count: completedCount });
+                    // Skip secure communication for local development
+                    if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+                        await this.secureComm.secureRequest('clear_completed', { count: completedCount });
+                    }
                     
                     this.todos = this.todos.filter(t => !t.completed);
                     await this.saveToStorage();
                     this.render();
                     
                     SecurityLogger.logEvent('todos_cleared', { count: completedCount });
-                            } catch (error) {
-                console.error('Failed to clear completed todos:', error);
-                // Don't show alert in development
-                if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-                    this.showSecurityAlert('Failed to clear completed tasks. Please try again.');
+                } catch (error) {
+                    console.error('Failed to clear completed todos:', error);
+                    // Alerts completely disabled
                 }
-            }
             }
         }
 
@@ -801,12 +806,12 @@
                 link.click();
                 
                 URL.revokeObjectURL(link.href);
-                this.showSecurityAlert('Data exported successfully!');
+                console.log('Security Notice: Data exported successfully!');
                 
                 SecurityLogger.logEvent('data_exported', { count: this.todos.length });
             } catch (error) {
                 console.error('Export error:', error);
-                this.showSecurityAlert('Failed to export data.');
+                console.log('Security Notice: Failed to export data.');
             }
         }
 
@@ -820,9 +825,12 @@
                     sessionId: sessionStorage.getItem('sessionId')
                 };
                 
-                await this.secureComm.secureRequest('save_storage', { 
-                    dataSize: new Blob([JSON.stringify(dataToStore)]).size 
-                });
+                // Skip secure communication for local development
+                if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+                    await this.secureComm.secureRequest('save_storage', { 
+                        dataSize: new Blob([JSON.stringify(dataToStore)]).size 
+                    });
+                }
                 
                 const encryptedData = await this.encrypt(dataToStore);
                 if (encryptedData) {
@@ -830,7 +838,7 @@
                 }
             } catch (error) {
                 console.error('Error saving to storage:', error);
-                this.showSecurityAlert('A system error occurred. Please try again.');
+                console.log('Security Notice: A system error occurred. Please try again.');
             }
         }
 
@@ -839,9 +847,12 @@
             try {
                 const encryptedDataStr = localStorage.getItem('secure_todos_v2');
                 if (encryptedDataStr) {
-                    await this.secureComm.secureRequest('load_storage', { 
-                        dataSize: encryptedDataStr.length 
-                    });
+                    // Skip secure communication for local development
+                    if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+                        await this.secureComm.secureRequest('load_storage', { 
+                            dataSize: encryptedDataStr.length 
+                        });
+                    }
                     
                     const encryptedData = JSON.parse(encryptedDataStr);
                     const decryptedData = await this.decrypt(encryptedData);
@@ -858,29 +869,10 @@
             }
         }
 
-        // Security alert function
+        // Security alert function - DISABLED
         showSecurityAlert(message) {
-            const alert = document.createElement('div');
-            alert.className = 'security-alert';
-            alert.textContent = message;
-            alert.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                background: #dc3545;
-                color: white;
-                padding: 12px 20px;
-                border-radius: 8px;
-                z-index: 10000;
-                font-weight: 500;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            `;
-            
-            document.body.appendChild(alert);
-            
-            setTimeout(() => {
-                alert.remove();
-            }, 3000);
+            // Completely disabled - no popups, only console logging
+            console.log('Security Notice (suppressed):', message);
         }
 
         // Render the UI with enhanced security
@@ -935,10 +927,7 @@
                     SecurityLogger.logEvent('all_data_cleared', {});
                             } catch (error) {
                 console.error('Failed to clear all data:', error);
-                // Don't show alert in development
-                if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-                    this.showSecurityAlert('Failed to clear data. Please try again.');
-                }
+                // Alerts completely disabled
             }
             }
         }
