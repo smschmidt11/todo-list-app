@@ -557,16 +557,11 @@
             const text = this.validateAndSanitizeInput(rawText);
             
             if (!text) {
-                console.log('Security Notice: Please enter a valid task description.');
+                this.showSecurityAlert('Please enter a valid task description.');
                 return;
             }
 
             try {
-                // Skip secure communication for local development
-                if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-                    await this.secureComm.secureRequest('add_todo', { textLength: text.length });
-                }
-
                 const todo = {
                     id: this.generateSecureId(),
                     text: text,
@@ -586,7 +581,7 @@
                 SecurityLogger.logEvent('todo_created', { id: todo.id, length: text.length });
             } catch (error) {
                 console.error('Failed to add todo:', error);
-                // Alerts completely disabled
+                this.showSecurityAlert('Failed to add task. Please try again.');
             }
         }
 
@@ -607,11 +602,6 @@
             const todo = this.todos.find(t => t.id === id);
             if (todo) {
                 try {
-                    // Skip secure communication for local development
-                    if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-                        await this.secureComm.secureRequest('toggle_todo', { id: id });
-                    }
-                    
                     todo.completed = !todo.completed;
                     todo.lastModified = new Date().toISOString();
                     await this.saveToStorage();
@@ -620,7 +610,7 @@
                     SecurityLogger.logEvent('todo_toggled', { id: id, completed: todo.completed });
                 } catch (error) {
                     console.error('Failed to toggle todo:', error);
-                    // Alerts completely disabled
+                    this.showSecurityAlert('Failed to update task. Please try again.');
                 }
             }
         }
@@ -647,11 +637,6 @@
             }
 
             try {
-                // Skip secure communication for local development
-                if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-                    await this.secureComm.secureRequest('edit_todo', { id: this.editingId, textLength: text.length });
-                }
-
                 const todo = this.todos.find(t => t.id === this.editingId);
                 if (todo) {
                     todo.text = text;
@@ -664,7 +649,7 @@
                 this.closeModal();
             } catch (error) {
                 console.error('Failed to save edit:', error);
-                // Alerts completely disabled
+                this.showSecurityAlert('Failed to save changes. Please try again.');
             }
         }
 
@@ -673,11 +658,6 @@
             const todoElement = document.querySelector(`[data-id="${this.escapeHtml(id)}"]`);
             if (todoElement) {
                 try {
-                    // Skip secure communication for local development
-                    if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-                        await this.secureComm.secureRequest('delete_todo', { id: id });
-                    }
-                    
                     todoElement.classList.add('fade-out');
                     setTimeout(async () => {
                         this.todos = this.todos.filter(t => t.id !== id);
@@ -688,7 +668,7 @@
                     }, 300);
                 } catch (error) {
                     console.error('Failed to delete todo:', error);
-                    // Alerts completely disabled
+                    this.showSecurityAlert('Failed to delete task. Please try again.');
                 }
             }
         }
@@ -700,11 +680,6 @@
 
             if (confirm(`Are you sure you want to permanently delete ${completedCount} completed task${completedCount > 1 ? 's' : ''}?`)) {
                 try {
-                    // Skip secure communication for local development
-                    if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-                        await this.secureComm.secureRequest('clear_completed', { count: completedCount });
-                    }
-                    
                     this.todos = this.todos.filter(t => !t.completed);
                     await this.saveToStorage();
                     this.render();
@@ -712,7 +687,7 @@
                     SecurityLogger.logEvent('todos_cleared', { count: completedCount });
                 } catch (error) {
                     console.error('Failed to clear completed todos:', error);
-                    // Alerts completely disabled
+                    this.showSecurityAlert('Failed to clear completed tasks. Please try again.');
                 }
             }
         }
@@ -806,12 +781,12 @@
                 link.click();
                 
                 URL.revokeObjectURL(link.href);
-                console.log('Security Notice: Data exported successfully!');
+                this.showSecurityAlert('Data exported successfully!');
                 
                 SecurityLogger.logEvent('data_exported', { count: this.todos.length });
             } catch (error) {
                 console.error('Export error:', error);
-                console.log('Security Notice: Failed to export data.');
+                this.showSecurityAlert('Failed to export data.');
             }
         }
 
@@ -825,20 +800,13 @@
                     sessionId: sessionStorage.getItem('sessionId')
                 };
                 
-                // Skip secure communication for local development
-                if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-                    await this.secureComm.secureRequest('save_storage', { 
-                        dataSize: new Blob([JSON.stringify(dataToStore)]).size 
-                    });
-                }
-                
                 const encryptedData = await this.encrypt(dataToStore);
                 if (encryptedData) {
                     localStorage.setItem('secure_todos_v2', JSON.stringify(encryptedData));
                 }
             } catch (error) {
                 console.error('Error saving to storage:', error);
-                console.log('Security Notice: A system error occurred. Please try again.');
+                throw new Error('Failed to save data securely');
             }
         }
 
@@ -847,13 +815,6 @@
             try {
                 const encryptedDataStr = localStorage.getItem('secure_todos_v2');
                 if (encryptedDataStr) {
-                    // Skip secure communication for local development
-                    if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-                        await this.secureComm.secureRequest('load_storage', { 
-                            dataSize: encryptedDataStr.length 
-                        });
-                    }
-                    
                     const encryptedData = JSON.parse(encryptedDataStr);
                     const decryptedData = await this.decrypt(encryptedData);
                     
@@ -869,10 +830,29 @@
             }
         }
 
-        // Security alert function - DISABLED
+        // Security alert function - RESTORED
         showSecurityAlert(message) {
-            // Completely disabled - no popups, only console logging
-            console.log('Security Notice (suppressed):', message);
+            const alert = document.createElement('div');
+            alert.className = 'security-alert';
+            alert.textContent = message;
+            alert.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #dc3545;
+                color: white;
+                padding: 12px 20px;
+                border-radius: 8px;
+                z-index: 10000;
+                font-weight: 500;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            `;
+            
+            document.body.appendChild(alert);
+            
+            setTimeout(() => {
+                alert.remove();
+            }, 3000);
         }
 
         // Render the UI with enhanced security
