@@ -1,4 +1,4 @@
-# Todo List Application
+# To-do List Application
 
 A modern, responsive to-do list application with full CRUD (Create, Read, Update, Delete) functionality built with vanilla HTML, CSS, and JavaScript.
 
